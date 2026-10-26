@@ -1,9 +1,9 @@
 """
 Benchmark, Training & Explainable AI (XAI) Pipeline:
 Next-day rainfall (>= 1.0 mm) prediction at Ratmalana, Western Province, Sri Lanka (2012-2018).
-Compares the top 5 lecture-taught ML algorithms against the selected new algorithm
-not taught in lectures: Explainable Boosting Machine (EBM / GA2M), plus secondary
-untaught candidates (Extra Trees, Gaussian Process Classifier).
+Compares standard supervised machine learning algorithms against the selected
+Explainable Boosting Machine (EBM / GA2M) and secondary candidate models
+(Extra Trees, Gaussian Process Classifier).
 """
 
 from __future__ import annotations
@@ -187,35 +187,35 @@ def find_optimal_threshold(y_true: np.ndarray, y_prob: np.ndarray) -> float:
 def build_model(name: str, params: dict):
     """Build one estimator from its model family name and a hyperparameter combination."""
     p = dict(params)
-    if name == "[NEW] Explainable Boosting Machine":
+    if name == "Explainable Boosting Machine (EBM)":
         return ExplainableBoostingClassifier(
             max_bins=128, max_rounds=4000, early_stopping_rounds=100,
             outer_bags=8, inner_bags=0, random_state=42, n_jobs=-1, **p,
         )
-    if name == "[L9] CatBoost":
+    if name == "CatBoost":
         return CatBoostClassifier(iterations=500, verbose=0, random_seed=42, allow_writing_files=False, **p)
-    if name == "[L6] Random Forest":
+    if name == "Random Forest":
         return RandomForestClassifier(n_estimators=500, max_features="sqrt", random_state=42, n_jobs=-1, **p)
-    if name == "[L7] XGBoost":
+    if name == "XGBoost":
         return XGBClassifier(
             n_estimators=400, subsample=0.8, colsample_bytree=0.8, random_state=42,
             eval_metric="logloss", n_jobs=1, **p,
         )
-    if name == "[L4] SVM (RBF)":
+    if name == "SVM (RBF)":
         return Pipeline([
             ("scaler", StandardScaler()),
             ("clf", SVC(kernel="rbf", probability=True, random_state=42, **p)),
         ])
-    if name == "[L5] Decision Tree":
+    if name == "Decision Tree":
         return DecisionTreeClassifier(criterion="entropy", random_state=42, **p)
-    if name == "[L3] Logistic Regression":
+    if name == "Logistic Regression":
         return Pipeline([
             ("scaler", StandardScaler()),
             ("clf", LogisticRegression(penalty="l2", solver="lbfgs", max_iter=2000, random_state=42, **p)),
         ])
-    if name == "[NEW-Alt] Extra Trees":
+    if name == "Extra Trees":
         return ExtraTreesClassifier(n_estimators=500, random_state=42, n_jobs=-1, **p)
-    if name == "[NEW-Alt] Gaussian Process Clf":
+    if name == "Gaussian Process Classifier":
         return Pipeline([
             ("scaler", StandardScaler()),
             ("clf", GaussianProcessClassifier(kernel=1.0 * RBF(3.0), random_state=42, **p)),
@@ -230,8 +230,6 @@ def get_param_grids() -> dict[str, list[dict]]:
     each time training only on earlier years) and the best mean ROC-AUC wins. One validation year alone
     (365 days) is too noisy to separate configurations. The winner's decision threshold is tuned on 2017,
     then it is refitted on Train+Val (2012-2017) and evaluated once on Test (2018).
-    The grids target each algorithm's main complexity / regularisation controls, because with only
-    ~1,800 training days the key risk is overfitting.
     """
     def grid(**axes):
         keys = list(axes)
@@ -242,24 +240,24 @@ def get_param_grids() -> dict[str, list[dict]]:
 
     return {
         # EBM: boosting step size, pairwise interactions (GA2M vs pure GAM), and bin smoothness
-        "[NEW] Explainable Boosting Machine": grid(
+        "Explainable Boosting Machine (EBM)": grid(
             learning_rate=[0.015, 0.04], interactions=[0, 10], min_samples_leaf=[10, 25],
         ),
-        # CatBoost: tree depth, learning rate, L2 leaf regularisation (Lec 7/9)
-        "[L9] CatBoost": grid(depth=[4, 6], learning_rate=[0.03, 0.06], l2_leaf_reg=[3.0, 8.0]),
-        # Random Forest: depth and leaf size control variance of each tree (Lec 6)
-        "[L6] Random Forest": grid(max_depth=[6, 10, None], min_samples_leaf=[3, 10]),
-        # XGBoost: depth, learning rate, L2 penalty (Lec 7)
-        "[L7] XGBoost": grid(max_depth=[3, 5], learning_rate=[0.03, 0.08], reg_lambda=[1.0, 5.0]),
-        # SVM: soft-margin C and RBF gamma (Lec 4)
-        "[L4] SVM (RBF)": grid(C=[0.3, 1.0, 3.0], gamma=["scale", 0.02]),
-        # Decision Tree: depth, leaf size and cost-complexity pruning alpha (Lec 5)
-        "[L5] Decision Tree": grid(max_depth=[4, 6], min_samples_leaf=[15, 40], ccp_alpha=[0.0, 0.003]),
-        # Logistic Regression: inverse L2 regularisation strength (Lec 3)
-        "[L3] Logistic Regression": grid(C=[0.05, 0.5, 5.0]),
-        # Secondary untaught candidates: one sensible configuration each (not the focus of the study)
-        "[NEW-Alt] Extra Trees": [dict(max_depth=10, min_samples_leaf=5)],
-        "[NEW-Alt] Gaussian Process Clf": [dict()],
+        # CatBoost: tree depth, learning rate, L2 leaf regularisation
+        "CatBoost": grid(depth=[4, 6], learning_rate=[0.03, 0.06], l2_leaf_reg=[3.0, 8.0]),
+        # Random Forest: depth and leaf size control variance of each tree
+        "Random Forest": grid(max_depth=[6, 10, None], min_samples_leaf=[3, 10]),
+        # XGBoost: depth, learning rate, L2 penalty
+        "XGBoost": grid(max_depth=[3, 5], learning_rate=[0.03, 0.08], reg_lambda=[1.0, 5.0]),
+        # SVM: soft-margin C and RBF gamma
+        "SVM (RBF)": grid(C=[0.3, 1.0, 3.0], gamma=["scale", 0.02]),
+        # Decision Tree: depth, leaf size and cost-complexity pruning alpha
+        "Decision Tree": grid(max_depth=[4, 6], min_samples_leaf=[15, 40], ccp_alpha=[0.0, 0.003]),
+        # Logistic Regression: inverse L2 regularisation strength
+        "Logistic Regression": grid(C=[0.05, 0.5, 5.0]),
+        # Secondary candidates: one sensible configuration each
+        "Extra Trees": [dict(max_depth=10, min_samples_leaf=5)],
+        "Gaussian Process Classifier": [dict()],
     }
 
 
@@ -279,20 +277,20 @@ def generate_plots(
     plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
 
     primary_models = [
-        "[NEW] Explainable Boosting Machine",
-        "[L9] CatBoost",
-        "[L6] Random Forest",
-        "[L7] XGBoost",
-        "[L4] SVM (RBF)",
-        "[L5] Decision Tree",
+        "Explainable Boosting Machine (EBM)",
+        "CatBoost",
+        "Random Forest",
+        "XGBoost",
+        "SVM (RBF)",
+        "Decision Tree",
     ]
     colors = {
-        "[NEW] Explainable Boosting Machine": "#D95F02",
-        "[L9] CatBoost": "#1B9E77",
-        "[L6] Random Forest": "#7570B3",
-        "[L7] XGBoost": "#E7298A",
-        "[L4] SVM (RBF)": "#66A61E",
-        "[L5] Decision Tree": "#E6AB02",
+        "Explainable Boosting Machine (EBM)": "#D95F02",
+        "CatBoost": "#1B9E77",
+        "Random Forest": "#7570B3",
+        "XGBoost": "#E7298A",
+        "SVM (RBF)": "#66A61E",
+        "Decision Tree": "#E6AB02",
     }
 
     # 1. ROC & Precision-Recall Curves + Calibration Curve
@@ -305,8 +303,9 @@ def generate_plots(
         prec, rec, _ = precision_recall_curve(yte, probs)
         auc_val = roc_auc_score(yte, probs)
         ap_val = average_precision_score(yte, probs)
-        lw = 2.8 if name.startswith("[NEW]") else 1.8
-        ls = "-" if name.startswith("[NEW]") else "--"
+        is_ebm = "Explainable Boosting Machine" in name
+        lw = 2.8 if is_ebm else 1.8
+        ls = "-" if is_ebm else "--"
         axes[0].plot(fpr, tpr, label=f"{name} (AUC={auc_val:.3f})", color=colors[name], lw=lw, ls=ls)
         axes[1].plot(rec, prec, label=f"{name} (AP={ap_val:.3f})", color=colors[name], lw=lw, ls=ls)
 
@@ -335,7 +334,7 @@ def generate_plots(
     plt.savefig(plots_dir / "model_comparison_roc_pr.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    # 2. Confusion Matrices for EBM vs Top Lecture Models
+    # 2. Confusion Matrices for EBM vs Baseline Models
     fig, axes = plt.subplots(2, 3, figsize=(15, 9))
     for ax, name in zip(axes.flat, primary_models):
         cm = confusion_matrix(yte, test_preds[name])
@@ -417,7 +416,6 @@ def generate_plots(
         u_vals = np.array(sh["upper"])
         l_vals = np.array(sh["lower"])
         if t_name in DISCRETE_FEATURES:
-            # Binary / count features: one bar per category with ±1 SD error bars
             cats = [str(int(round(v))) for v in x_vals]
             ax.bar(range(len(cats)), y_vals, color=["#D95F02" if v > 0 else "#2B5C8F" for v in y_vals],
                    yerr=[y_vals - l_vals, u_vals - y_vals], capsize=5, alpha=0.9)
@@ -436,7 +434,7 @@ def generate_plots(
     plt.savefig(plots_dir / "ebm_shape_functions.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    # 5a. SHAP on the NEW model (EBM) — model-agnostic Permutation SHAP on P(Rain), 2018 Test Set
+    # 5a. SHAP on the EBM — model-agnostic Permutation SHAP on P(Rain), 2018 Test Set
     feat_cols = list(Xte_df.columns)
 
     def ebm_rain_prob(X):
@@ -453,7 +451,7 @@ def generate_plots(
     plt.savefig(plots_dir / "shap_summary_ebm.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    # 5b. SHAP cross-model check: TreeSHAP on the best lecture model family (CatBoost)
+    # 5b. SHAP cross-model check: TreeSHAP on CatBoost
     explainer = shap.TreeExplainer(cat_model)
     shap_values = explainer.shap_values(Xte_df)
     fig = plt.figure(figsize=(10, 6.5))
@@ -468,7 +466,6 @@ def generate_plots(
     plt.savefig(plots_dir / "shap_summary_beeswarm.png", dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    # Agreement between explanation methods: rank of mean |SHAP| (EBM) vs EBM intrinsic importance
     ebm_shap_rank = pd.Series(np.abs(ebm_shap.values).mean(axis=0), index=feat_cols).sort_values(ascending=False)
     cat_shap_rank = pd.Series(np.abs(shap_values).mean(axis=0), index=feat_cols).sort_values(ascending=False)
 
@@ -480,7 +477,7 @@ def generate_plots(
         mode="classification",
         random_state=42,
     )
-    wet_indices = np.where((yte == 1) & (test_probs["[NEW] Explainable Boosting Machine"] > 0.75))[0]
+    wet_indices = np.where((yte == 1) & (test_probs["Explainable Boosting Machine (EBM)"] > 0.75))[0]
     sample_idx = int(wet_indices[0]) if len(wet_indices) > 0 else 0
     lime_exp = lime_explainer.explain_instance(
         Xte_df.iloc[sample_idx].values,
@@ -491,7 +488,7 @@ def generate_plots(
     fig.set_size_inches(10, 5.5)
     plt.title(
         f"LIME Surrogate Local Explanation — EBM Forecast on {Xte_df.index[sample_idx].strftime('%Y-%m-%d')} "
-        f"(P(Rain) = {test_probs['[NEW] Explainable Boosting Machine'][sample_idx]:.1%})",
+        f"(P(Rain) = {test_probs['Explainable Boosting Machine (EBM)'][sample_idx]:.1%})",
         fontsize=11.5,
         fontweight="bold",
     )
@@ -559,8 +556,6 @@ def main():
     best_params = {}
     trained_models = {}
 
-    # Rolling-origin (expanding-window) time-series CV folds for hyperparameter selection:
-    # validate on each year 2014..2017 using only earlier years for training (imputer refit per fold).
     cv_folds = []
     for val_year in [2014, 2015, 2016, 2017]:
         f_tr = df[df.index.year < val_year]
@@ -576,7 +571,6 @@ def main():
     print("Hyperparameter search: rolling-origin CV, validation years", [f[0] for f in cv_folds])
 
     for name, grid in param_grids.items():
-        # Step 1: Hyperparameter search — mean ROC-AUC across the 4 rolling-origin validation years
         best_auc, best_p = -1.0, None
         for params in grid:
             fold_aucs = []
@@ -591,19 +585,17 @@ def main():
             })
             if mean_auc > best_auc:
                 best_auc, best_p = mean_auc, params
-        # Selected configuration, fitted on 2012-2016 and scored on 2017 (used for threshold tuning)
+
         mdl_v = build_model(name, best_p)
         mdl_v.fit(X_tr_val, y_tr_val)
         best_val_probs = mdl_v.predict_proba(X_va_val)[:, 1]
         val_auc_2017 = roc_auc_score(y_va_val, best_val_probs)
         print(f"  {name:<38} CV mean ROC-AUC={best_auc:.4f} over {len(grid)} config(s) -> {best_p}")
 
-        # Step 2: Tune the decision threshold (max F1) on Val (2017) using the selected configuration
         opt_t = find_optimal_threshold(y_va_val, best_val_probs)
         val_thresholds[name] = opt_t
         best_params[name] = best_p
 
-        # Step 3: Refit the selected configuration on Train+Val (2012-2017), evaluate once on unseen Test (2018)
         mdl_f = build_model(name, best_p)
         mdl_f.fit(X_trval, y_trval)
         p_test = mdl_f.predict_proba(X_test)[:, 1]
@@ -638,7 +630,6 @@ def main():
     results_df.to_csv(OUT_CSV, index=False)
     print(f"\nSaved benchmark metrics table to: {OUT_CSV}")
 
-    # Generate Evaluation & XAI Plots
     ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
     xai_artifacts = generate_plots(
         test_probs=test_probs,
@@ -646,8 +637,8 @@ def main():
         yte=y_test,
         Xtr_df=X_trval,
         Xte_df=X_test,
-        ebm_model=trained_models["[NEW] Explainable Boosting Machine"],
-        cat_model=trained_models["[L9] CatBoost"],
+        ebm_model=trained_models["Explainable Boosting Machine (EBM)"],
+        cat_model=trained_models["CatBoost"],
         feature_labels=feature_labels,
         plots_dir=PLOTS_DIR,
     )
@@ -657,7 +648,6 @@ def main():
     print("TreeSHAP-on-CatBoost top features:", xai_artifacts["catboost_shap_top"])
     print("LIME sample date:", xai_artifacts["sample_wet_date"])
 
-    # Save bundle for interactive Streamlit Frontend
     feature_stats = {}
     for col in feats:
         s = X_trval[col]

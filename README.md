@@ -3,9 +3,9 @@
 **Course:** Applied Machine Learning (MSc in AI)  
 **Target Station:** Ratmalana Meteorological Station (Station ID: `43467`, Western Province, Sri Lanka)  
 **Task:** Binary Classification — Predicting Next-Day Wet Days ($\text{Precipitation}_{t+1} \ge 1.0\text{ mm}$, WMO wet-day standard)  
-**Primary New Algorithm (Not Taught in Lectures):** **Explainable Boosting Machine (EBM)** (`interpret.glassbox.ExplainableBoostingClassifier`)  
-**Compared Lecture Algorithms:** Random Forest, CatBoost, XGBoost, Support Vector Machine with RBF Kernel, Decision Tree / CART, plus Logistic Regression as a baseline  
-**Live App:** https://ml-assignment2-new-269195e-fzwrvgzmtg68a9hx8fqm9w.streamlit.app
+**Featured Glass-Box Algorithm:** **Explainable Boosting Machine (EBM)** (`interpret.glassbox.ExplainableBoostingClassifier`)  
+**Compared Baseline Algorithms:** Random Forest, CatBoost, XGBoost, Support Vector Machine (RBF Kernel), Decision Tree (CART), and Logistic Regression (plus secondary candidates Extra Trees and Gaussian Process Classifier)  
+**Live App:** `[add your Streamlit Community Cloud URL here]`
 
 ---
 
@@ -13,7 +13,7 @@
 
 Accurate short-range daily rainfall forecasting in Sri Lanka's Western Province is critical for urban flood preparedness, aviation operations at Ratmalana Airport, municipal drainage management, and agricultural scheduling across the Colombo–Kalutara corridor. Because tropical convective and monsoonal rainfall exhibits strong non-linear thresholds and multi-station spatial dependencies, black-box models often struggle to justify their alerts to meteorologists and disaster-management authorities.
 
-This project compiles multi-station daily meteorological records (2012–2018) from the **Department of Meteorology, Sri Lanka**, engineers leak-free spatial, temporal-persistence, and seasonal monsoon features, tunes and benchmarks the **Explainable Boosting Machine (EBM)** against the **top 5 machine learning algorithms taught in lectures**, interprets the learned meteorological relationships using **intrinsic EBM shape functions**, **SHAP**, and **LIME**, and deploys the trained models as an interactive **Streamlit web dashboard** (`app.py`).
+This project compiles multi-station daily meteorological records (2012–2018) from the **Department of Meteorology, Sri Lanka**, engineers leak-free spatial, temporal-persistence, and seasonal monsoon features, tunes and benchmarks the **Explainable Boosting Machine (EBM)** against standard supervised machine learning algorithms, interprets the learned meteorological relationships using **intrinsic EBM shape functions**, **SHAP**, and **LIME**, and deploys the trained models as an interactive **Streamlit web dashboard** (`app.py`).
 
 ---
 
@@ -89,17 +89,16 @@ All features at index $t$ use observations strictly up to day $t$ to predict day
 
 ## 4. Algorithm Selection: Why Explainable Boosting Machine (EBM)?
 
-### 4.1 Algorithms Taught in the Lectures (Excluded as "New" Model)
-Per the lectures, the course covered:
-- **Linear & Generalized Linear Models**: Linear Regression, Logistic Regression with L1/L2/ElasticNet.
-- **Margin & Kernel Classifiers**: Support Vector Machines — Linear, Polynomial, RBF, Sigmoid.
-- **Tree & Ensemble Classifiers**: Decision Trees / CART, Bagging & Random Forests, AdaBoost, Gradient Boosting, XGBoost, LightGBM, CatBoost, Stacking, and Voting Classifiers / k-NN.
-- **Unsupervised Clustering**: K-Means, K-Medoids, Hierarchical, DBSCAN, Spectral Clustering, EM/GMM.
+### 4.1 Standard Supervised Baseline Models
+We benchmark against standard classical machine learning families across linear, kernel, single-tree, bagging, and boosting paradigms:
+- **Linear & Generalized Linear Models**: Logistic Regression with L2 regularization.
+- **Margin & Kernel Classifiers**: Support Vector Machine (SVM) with Radial Basis Function (RBF) kernel.
+- **Tree & Ensemble Classifiers**: Decision Tree (CART with Cost-Complexity Pruning), Random Forest (Bootstrap Aggregating), XGBoost, and CatBoost.
 
-### 4.2 Our Selected New Algorithm: Explainable Boosting Machine (EBM)
-We selected the **Explainable Boosting Machine (EBM)** (`ExplainableBoostingClassifier` from Microsoft Research's `interpret` library), along with two secondary untaught comparison models (**Extra Trees** and **Gaussian Process Classifier**).
+### 4.2 Selected Glass-Box Algorithm: Explainable Boosting Machine (EBM)
+We selected the **Explainable Boosting Machine (EBM)** (`ExplainableBoostingClassifier` from Microsoft Research's `interpret` library), along with two secondary comparison models (**Extra Trees** and **Gaussian Process Classifier**).
 
-**How EBM Works & How It Differs from Standard Lecture Models:**
+**How EBM Works & How It Differs from Standard Models:**
 $$g(\mathbb{E}[y]) = \beta_0 + \sum_{i=1}^{p} f_i(x_i) \; \left[ + \sum_{(i,j) \in \mathcal{I}} f_{ij}(x_i, x_j) \right]$$
 1. **Generalized Additive Model (GAM), optionally with pairwise interactions (GA²M)**: Unlike Logistic Regression (which assumes linear log-odds $\beta_i x_i$) and unlike XGBoost/CatBoost/Random Forest (which build trees where all features interact inside black-box paths), EBM learns one non-linear function per feature and adds them up. The bracketed interaction terms are optional; whether to use them was decided by hyperparameter search (Section 5.2).
 2. **Cyclic (Round-Robin) Gradient Boosting**: EBM trains one feature function $f_i(x_i)$ at a time in a round-robin cycle using a small learning rate over thousands of iterations with outer bagging (`outer_bags=8`). Because only one feature is updated per step, the order of collinear features does not matter, and each variable gets a smooth non-linear lookup table.
@@ -121,7 +120,7 @@ Each model family has a small grid over its main complexity / regularisation con
 
 | Model | Grid searched | Selected configuration | CV mean ROC-AUC |
 | :--- | :--- | :--- | :---: |
-| **EBM (new)** | `learning_rate` {0.015, 0.04} × `interactions` {0, 10} × `min_samples_leaf` {10, 25} | `learning_rate=0.015, interactions=0, min_samples_leaf=25` | **0.745** |
+| **Explainable Boosting Machine (EBM)** | `learning_rate` {0.015, 0.04} × `interactions` {0, 10} × `min_samples_leaf` {10, 25} | `learning_rate=0.015, interactions=0, min_samples_leaf=25` | **0.745** |
 | Random Forest | `max_depth` {6, 10, None} × `min_samples_leaf` {3, 10} (500 trees) | `max_depth=10, min_samples_leaf=10` | 0.748 |
 | CatBoost | `depth` {4, 6} × `learning_rate` {0.03, 0.06} × `l2_leaf_reg` {3, 8} (500 iters) | `depth=4, learning_rate=0.03, l2_leaf_reg=8` | 0.734 |
 | XGBoost | `max_depth` {3, 5} × `learning_rate` {0.03, 0.08} × `reg_lambda` {1, 5} (400 trees) | `max_depth=3, learning_rate=0.03, reg_lambda=5` | 0.738 |
@@ -135,15 +134,15 @@ Each model family has a small grid over its main complexity / regularisation con
 
 | Model | Category | CV ROC-AUC (2014–17) | Val ROC-AUC (2017) | **Test ROC-AUC (2018)** | Test PR-AUC | Test F1 | Test Precision | Test Recall | Test Accuracy | Test Brier | Threshold |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `[L6] Random Forest` | Lecture (Bagging) | **0.748** | 0.789 | **0.799** | **0.708** | 0.657 | **0.669** | 0.645 | **0.739** | **0.178** | 0.500 |
-| `[NEW-Alt] Extra Trees` | Untaught (secondary) | 0.748 | 0.781 | 0.795 | 0.685 | **0.678** | 0.632 | 0.730 | 0.731 | 0.179 | 0.400 |
-| `[L9] CatBoost` | Lecture (Boosting) | 0.734 | 0.788 | 0.795 | 0.695 | 0.669 | 0.593 | **0.766** | 0.706 | 0.180 | 0.360 |
-| `[L7] XGBoost` | Lecture (Boosting) | 0.738 | 0.781 | 0.788 | 0.677 | 0.615 | 0.643 | 0.589 | 0.714 | 0.184 | 0.515 |
-| `[NEW-Alt] Gaussian Process Clf` | Untaught (secondary) | 0.742 | 0.780 | 0.788 | 0.662 | 0.673 | 0.647 | 0.702 | 0.736 | 0.180 | 0.440 |
-| **`[NEW] Explainable Boosting Machine`** | **Primary new model** | **0.745** | 0.786 | **0.778** | 0.647 | 0.660 | 0.634 | 0.688 | 0.725 | 0.184 | 0.425 |
-| `[L4] SVM (RBF)` | Lecture (Kernel) | 0.740 | 0.776 | 0.776 | 0.646 | 0.662 | 0.632 | 0.695 | 0.725 | 0.185 | 0.385 |
-| `[L3] Logistic Regression` | Lecture (Linear) | 0.730 | 0.778 | 0.770 | 0.644 | 0.676 | 0.651 | 0.702 | 0.739 | 0.186 | 0.435 |
-| `[L5] Decision Tree` | Lecture (CART) | 0.726 | 0.776 | 0.766 | 0.634 | 0.652 | 0.584 | 0.738 | 0.695 | 0.188 | 0.345 |
+| `Random Forest` | Baseline (Bagging) | **0.748** | 0.789 | **0.799** | **0.708** | 0.657 | **0.669** | 0.645 | **0.739** | **0.178** | 0.500 |
+| `Extra Trees` | Secondary Candidate | 0.748 | 0.781 | 0.795 | 0.685 | **0.678** | 0.632 | 0.730 | 0.731 | 0.179 | 0.400 |
+| `CatBoost` | Baseline (Boosting) | 0.734 | 0.788 | 0.795 | 0.695 | 0.669 | 0.593 | **0.766** | 0.706 | 0.180 | 0.360 |
+| `XGBoost` | Baseline (Boosting) | 0.738 | 0.781 | 0.788 | 0.677 | 0.615 | 0.643 | 0.589 | 0.714 | 0.184 | 0.515 |
+| `Gaussian Process Classifier` | Secondary Candidate | 0.742 | 0.780 | 0.788 | 0.662 | 0.673 | 0.647 | 0.702 | 0.736 | 0.180 | 0.440 |
+| **`Explainable Boosting Machine (EBM)`** | **Primary Glass-Box Model** | **0.745** | 0.786 | **0.778** | 0.647 | 0.660 | 0.634 | 0.688 | 0.725 | 0.184 | 0.425 |
+| `SVM (RBF)` | Baseline (Kernel) | 0.740 | 0.776 | 0.776 | 0.646 | 0.662 | 0.632 | 0.695 | 0.725 | 0.185 | 0.385 |
+| `Logistic Regression` | Baseline (Linear) | 0.730 | 0.778 | 0.770 | 0.644 | 0.676 | 0.651 | 0.702 | 0.739 | 0.186 | 0.435 |
+| `Decision Tree` | Baseline (CART) | 0.726 | 0.776 | 0.766 | 0.634 | 0.652 | 0.584 | 0.738 | 0.695 | 0.188 | 0.345 |
 
 **Key Takeaways:**
 - **Across four validation years**, EBM (CV ROC-AUC **0.745**) is within **0.003** of the best model (Random Forest, 0.748) and **ahead of CatBoost, XGBoost, SVM, Logistic Regression and the Decision Tree** — i.e. a fully transparent additive model matches the strongest black-box ensembles on average.
@@ -205,21 +204,33 @@ The local virtual environment (`.venv`) has all packages installed, and pre-trai
 
 ---
 
-## 9. Deployment: Streamlit Community Cloud
+## 9. Deployment (Bonus): Streamlit Community Cloud
 
-The app is Deployed in Streamlit Community Cloud.
+The app is deployable as-is: the trained bundle is committed, so the cloud app starts without retraining, and `requirements.txt` pins the exact library versions used to train it (tested on Python 3.9 and 3.11).
 
-**Live App:** https://ml-assignment2-new-269195e-fzwrvgzmtg68a9hx8fqm9w.streamlit.app
+1. **Create the GitHub repository** (in PyCharm Terminal, inside the project folder):
+   ```bash
+   git init
+   git add .
+   git commit -m "Ratmalana next-day rainfall prediction with EBM and XAI dashboard"
+   git branch -M main
+   git remote add origin https://github.com/<your-username>/<repo-name>.git
+   git push -u origin main
+   ```
+   `.gitignore` keeps `.venv/`, `.idea/`, `catboost_info/` and `.DS_Store` out of the repository.
+2. **Deploy:** go to **share.streamlit.io** → sign in with GitHub → **Create app** → choose the repository, branch `main`, main file `app.py` → **Advanced settings → Python 3.11** → **Deploy**.
+3. **Copy the public URL** (e.g. `https://<app-name>.streamlit.app`) into the *Live App* line at the top of this README and into your report.
+4. **Before recording the demo video**, open the URL once — a sleeping app takes about 30–60 seconds to wake up.
 
 ---
 
-## 10. Guide to Using the Frontend Dashboard
+## 10. Guide to Using the Frontend Dashboard (For the Demo Video)
 
 1. **Sidebar (`🎛️ Weather Input Controls`)**:
    - Choose **`📅 Pick a 2018 Test Date`** to select any real day from 2018 and compare the prediction with the actual observed next-day rainfall (mm), **or** tick **`Override specific features`** / choose **`🎚️ Custom Weather Scenario Sliders`** for live *what-if* experiments with rainfall, humidity, temperature and day of year (the selected date's season is kept when overriding; derived features such as station counts, 3-day totals and 24-hour changes are recomputed automatically).
 2. **Tab 1 (`🔮 Live Forecast & Local XAI`)**:
-   - Live next-day rain probability from **EBM** and the best lecture model (**Random Forest**), a **multi-model consensus table** across all 9 models, and side-by-side **EBM exact local contributions** and **LIME surrogate weights** explaining that specific forecast.
-3. **Tab 2 (`📊 Model Benchmark`)**:
+   - Live next-day rain probability from **EBM** and **Random Forest**, a **multi-model consensus table** across all 9 models, and side-by-side **EBM exact local contributions** and **LIME surrogate weights** explaining that specific forecast.
+3. **Tab 2 (`📊 Model Benchmark Comparison`)**:
    - The full CV / validation / 2018 test metrics table with the selected hyperparameters, an explanation of how to read it, plus ROC, Precision-Recall, calibration curves and confusion matrices.
 4. **Tab 3 (`🧠 Global Explainability`)**:
    - EBM global importance, SHAP on EBM and the CatBoost TreeSHAP cross-check, plus an **interactive EBM shape-function explorer** showing any feature's learned curve $f_i(x_i)$ (bar chart for binary/count features) with your current input marked.

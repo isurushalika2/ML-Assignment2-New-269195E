@@ -1,9 +1,9 @@
 """
 Interactive Streamlit Frontend Dashboard:
 Next-Day Rainfall Prediction & Explainable AI (XAI) System for Ratmalana, Sri Lanka.
-Integrates the Explainable Boosting Machine (EBM - new untaught algorithm) and the
-top 5 lecture-taught ML algorithms with real-time local & global explanations
-(EBM Glass-Box Waterfall & Shape Functions, LIME, and SHAP).
+Integrates the Explainable Boosting Machine (EBM) and baseline machine learning
+algorithms with real-time local & global explanations (EBM Glass-Box Waterfall &
+Shape Functions, LIME, and SHAP).
 """
 
 from __future__ import annotations
@@ -27,6 +27,8 @@ from model_selection_benchmark import main as run_benchmark_pipeline  # noqa: E4
 BUNDLE_PATH = BASE_DIR / "artifacts" / "models_bundle.joblib"
 PLOTS_DIR = BASE_DIR / "artifacts" / "plots"
 DISCRETE_FEATURES = {"stations_raining", "monsoon_SW", "monsoon_IM1", "monsoon_IM2"}
+PRIMARY_NEW_MODEL = "Explainable Boosting Machine (EBM)"
+SECONDARY_CANDIDATE_MODELS = {"Extra Trees", "Gaussian Process Classifier"}
 
 
 def _clamp(value: float, lo: float, hi: float) -> float:
@@ -78,7 +80,7 @@ st.title("🌧️ Sri Lanka Next-Day Rainfall Prediction & Explainable AI (XAI) 
 st.markdown(
     "**Target Station:** Ratmalana Meteorological Station (Western Province, Sri Lanka) | "
     "**Task:** Predict Next-Day Wet Day ($\\ge 1.0\\text{ mm}$ Rainfall) | "
-    "**Featured New Model:** **Explainable Boosting Machine (EBM / $\\text{GA}^2\\text{M}$)** vs. **Top 5 Lecture Algorithms** "
+    "**Featured Model:** **Explainable Boosting Machine (EBM / $\\text{GA}^2\\text{M}$)** vs. **Baseline ML Algorithms** "
     "| *Decision-support tool only — always follow official Department of Meteorology forecasts.*"
 )
 
@@ -204,29 +206,29 @@ input_df = pd.DataFrame([input_series[feats]], columns=feats)
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "🔮 Live Forecast & Local XAI (EBM + LIME + SHAP)",
-    "📊 Model Benchmark (New EBM vs. Top 5 Lecture Models)",
+    "📊 Model Benchmark Comparison",
     "🧠 Global Explainability (EBM Shape Curves & SHAP)",
     "🗺️ Sri Lanka Western Province Dataset Explorer",
 ])
 
 with tab1:
-    ebm_model = models["[NEW] Explainable Boosting Machine"]
+    ebm_model = models[PRIMARY_NEW_MODEL]
     ebm_prob = float(ebm_model.predict_proba(input_df)[0, 1])
-    ebm_thresh = val_thresholds["[NEW] Explainable Boosting Machine"]
+    ebm_thresh = val_thresholds[PRIMARY_NEW_MODEL]
     ebm_pred = int(ebm_prob >= ebm_thresh)
 
     col_a, col_b, col_c = st.columns(3)
     with col_a:
         st.metric(
-            label="[NEW] EBM Next-Day Rain Probability",
+            label="EBM Next-Day Rain Probability",
             value=f"{ebm_prob:.1%}",
             delta=f"Threshold: {ebm_thresh:.2f} ({'🌧️ RAIN' if ebm_pred == 1 else '☀️ DRY'})",
         )
     with col_b:
-        rf_prob = float(models["[L6] Random Forest"].predict_proba(input_df)[0, 1])
-        rf_thresh = val_thresholds["[L6] Random Forest"]
+        rf_prob = float(models["Random Forest"].predict_proba(input_df)[0, 1])
+        rf_thresh = val_thresholds["Random Forest"]
         st.metric(
-            label="[Best Lecture Model] Random Forest Rain Probability",
+            label="Random Forest Rain Probability",
             value=f"{rf_prob:.1%}",
             delta=f"Threshold: {rf_thresh:.2f} ({'🌧️ RAIN' if rf_prob >= rf_thresh else '☀️ DRY'})",
         )
@@ -249,9 +251,15 @@ with tab1:
     for m_name, mdl in models.items():
         p_val = float(mdl.predict_proba(input_df)[0, 1])
         t_val = val_thresholds[m_name]
+        if m_name == PRIMARY_NEW_MODEL:
+            cat_label = "🌟 Featured Glass-Box Model"
+        elif m_name in SECONDARY_CANDIDATE_MODELS:
+            cat_label = "🔬 Secondary Candidate Model"
+        else:
+            cat_label = "📊 Baseline Model"
         pred_rows.append({
             "Model": m_name,
-            "Category": "🌟 New Algorithm (Untaught)" if m_name.startswith("[NEW") else "📚 Lecture Algorithm",
+            "Category": cat_label,
             "Predicted Rain Prob": f"{p_val:.1%}",
             "Val-Tuned Threshold": f"{t_val:.3f}",
             "Decision": "🌧️ Rain (>=1.0 mm)" if p_val >= t_val else "☀️ Dry (<1.0 mm)",
@@ -319,22 +327,23 @@ with tab1:
         plt.close(fig_lime)
 
 with tab2:
-    st.subheader("🏆 Benchmark Comparison: Explainable Boosting Machine (EBM) vs. Lecture Models")
+    st.subheader("🏆 Benchmark Comparison: Explainable Boosting Machine (EBM) vs. Baseline Models")
     st.markdown(
         "Hyperparameters chosen by **rolling-origin time-series CV** (validate on 2014, 2015, 2016, 2017, each time "
         "training only on earlier years; `CV_ROC-AUC` = mean) $\\rightarrow$ decision threshold tuned on **Validation (2017)** "
         "(max F1) $\\rightarrow$ refit on 2012–2017 $\\rightarrow$ **Unseen Test (2018)** ($N = 364$ days), evaluated once."
     )
     _r = results_df.set_index("model")
-    _ebm = "[NEW] Explainable Boosting Machine"
+    _ebm = PRIMARY_NEW_MODEL
     _cv_best = _r["CV_ROC-AUC"].idxmax()
     _te_best = _r["ROC-AUC"].idxmax()
-    _cv_beaten = [m.split("] ")[1] for m in _r.index if m.startswith("[L") and _r.loc[m, "CV_ROC-AUC"] < _r.loc[_ebm, "CV_ROC-AUC"]]
+    _baseline_models = {"Random Forest", "CatBoost", "XGBoost", "SVM (RBF)", "Decision Tree", "Logistic Regression"}
+    _cv_beaten = [m for m in _r.index if m in _baseline_models and _r.loc[m, "CV_ROC-AUC"] < _r.loc[_ebm, "CV_ROC-AUC"]]
     st.info(
         f"**Reading the table:** across the four rolling-origin CV years EBM scores {_r.loc[_ebm, 'CV_ROC-AUC']:.3f} ROC-AUC, "
-        f"{_r.loc[_cv_best, 'CV_ROC-AUC'] - _r.loc[_ebm, 'CV_ROC-AUC']:.3f} below the best ({_cv_best.split('] ')[1]}) and ahead of "
+        f"{_r.loc[_cv_best, 'CV_ROC-AUC'] - _r.loc[_ebm, 'CV_ROC-AUC']:.3f} below the best ({_cv_best}) and ahead of "
         f"{', '.join(_cv_beaten)}. On the single 2018 test year it scores {_r.loc[_ebm, 'ROC-AUC']:.3f} vs "
-        f"{_r.loc[_te_best, 'ROC-AUC']:.3f} for {_te_best.split('] ')[1]} — gaps of this size on 364 days are close to noise, "
+        f"{_r.loc[_te_best, 'ROC-AUC']:.3f} for {_te_best} — gaps of this size on 364 days are close to noise, "
         "and are the price of a fully transparent additive model. Recall/precision depend on each model's "
         "validation-tuned threshold (lower threshold = more wet days caught, more false alarms)."
     )
