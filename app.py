@@ -44,11 +44,34 @@ st.set_page_config(
 )
 
 
+def _clean_model_name(name: str) -> str:
+    """Strip any legacy bracket prefix and standardize model names."""
+    cleaned = str(name).strip()
+    if cleaned.startswith("[") and "] " in cleaned:
+        cleaned = cleaned.split("] ", 1)[1].strip()
+    if cleaned == "Gaussian Process":
+        return "Gaussian Process Classifier"
+    return cleaned
+
+
+def _normalize_bundle(raw_bundle: dict) -> dict:
+    """Ensure all model keys, thresholds, and results rows use clean canonical names."""
+    normalized = dict(raw_bundle)
+    normalized["models"] = {_clean_model_name(k): v for k, v in raw_bundle["models"].items()}
+    normalized["val_thresholds"] = {_clean_model_name(k): v for k, v in raw_bundle["val_thresholds"].items()}
+    if "results_df" in raw_bundle and isinstance(raw_bundle["results_df"], pd.DataFrame):
+        df = raw_bundle["results_df"].copy()
+        if "model" in df.columns:
+            df["model"] = df["model"].map(_clean_model_name)
+        normalized["results_df"] = df
+    return normalized
+
+
 @st.cache_resource
-def load_bundle():
+def load_bundle(schema_version: str = "v2_clean_names", bundle_mtime: float = 0.0):
     if not BUNDLE_PATH.exists():
         run_benchmark_pipeline()
-    return joblib.load(BUNDLE_PATH)
+    return _normalize_bundle(joblib.load(BUNDLE_PATH))
 
 
 @st.cache_resource
@@ -62,7 +85,8 @@ def get_lime_explainer(_X_trval_values: np.ndarray, feature_names: list[str]) ->
     )
 
 
-bundle = load_bundle()
+_bundle_mtime = BUNDLE_PATH.stat().st_mtime if BUNDLE_PATH.exists() else 0.0
+bundle = _normalize_bundle(load_bundle("v2_clean_names", _bundle_mtime))
 models = bundle["models"]
 feats = bundle["features"]
 feature_labels = bundle["feature_labels"]
