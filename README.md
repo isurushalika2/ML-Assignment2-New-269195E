@@ -5,7 +5,7 @@
 **Task:** Binary Classification — Predicting Next-Day Wet Days ($\text{Precipitation}_{t+1} \ge 1.0\text{ mm}$, WMO wet-day standard)  
 **Primary New Algorithm (Not Taught in Lectures):** **Explainable Boosting Machine (EBM)** (`interpret.glassbox.ExplainableBoostingClassifier`)  
 **Compared Lecture Algorithms:** Random Forest, CatBoost, XGBoost, Support Vector Machine with RBF Kernel, Decision Tree / CART, plus Logistic Regression as a baseline  
-**Live App:** `[add your Streamlit Community Cloud URL here]`
+**Live App:** https://ml-assignment2-new-269195e-fzwrvgzmtg68a9hx8fqm9w.streamlit.app
 
 ---
 
@@ -207,21 +207,9 @@ The local virtual environment (`.venv`) has all packages installed, and pre-trai
 
 ## 9. Deployment: Streamlit Community Cloud
 
-The app is deployable as-is: the trained bundle is committed, so the cloud app starts without retraining, and `requirements.txt` pins the exact library versions used to train it (tested on Python 3.9 and 3.11).
+The app is Deployed in Streamlit Community Cloud.
 
-1. **Create the GitHub repository** (in PyCharm Terminal, inside the project folder):
-   ```bash
-   git init
-   git add .
-   git commit -m "Ratmalana next-day rainfall prediction with EBM and XAI dashboard"
-   git branch -M main
-   git remote add origin https://github.com/<your-username>/<repo-name>.git
-   git push -u origin main
-   ```
-   `.gitignore` keeps `.venv/`, `.idea/`, `catboost_info/` and `.DS_Store` out of the repository.
-2. **Deploy:** go to **share.streamlit.io** → sign in with GitHub → **Create app** → choose the repository, branch `main`, main file `app.py` → **Advanced settings → Python 3.11** → **Deploy**.
-3. **Copy the public URL** (e.g. `https://<app-name>.streamlit.app`) into the *Live App* line at the top of this README and into your report.
-4. Open the URL once — a sleeping app takes about 30–60 seconds to wake up.
+**Live App:** https://ml-assignment2-new-269195e-fzwrvgzmtg68a9hx8fqm9w.streamlit.app
 
 ---
 
