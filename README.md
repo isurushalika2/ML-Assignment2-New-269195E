@@ -221,7 +221,7 @@ The app is deployable as-is: the trained bundle is committed, so the cloud app s
    `.gitignore` keeps `.venv/`, `.idea/`, `catboost_info/` and `.DS_Store` out of the repository.
 2. **Deploy:** go to **share.streamlit.io** → sign in with GitHub → **Create app** → choose the repository, branch `main`, main file `app.py` → **Advanced settings → Python 3.11** → **Deploy**.
 3. **Copy the public URL** (e.g. `https://<app-name>.streamlit.app`) into the *Live App* line at the top of this README and into your report.
-4. **Before recording the demo video**, open the URL once — a sleeping app takes about 30–60 seconds to wake up.
+4. Open the URL once — a sleeping app takes about 30–60 seconds to wake up.
 
 ---
 
